@@ -1,7 +1,4 @@
-web-developer-form-filler-ext
+Web Form Filler
 =============================
 
-This extension is used by developers to make it easy to fill forms
-
-It's available in Google Web Store 
-https://chrome.google.com/webstore/detail/web-developer-form-filler/gbagmkohmhcjgbepncmehejaljoclpil
+This extension is used by developers to make it easy to fill forms, compatible with manifest v3. Forked from (abzubarev/web-developer-form-filler-ext)[https://github.com/abzubarev/web-developer-form-filler-ext]
