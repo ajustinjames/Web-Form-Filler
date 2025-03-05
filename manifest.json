@@ -1,4 +1,4 @@
-{
+ {
 	"content_scripts" : [ {
 				"js" : [
 					"javascripts/jquery-1.9.1.min.js", 
@@ -15,17 +15,21 @@
 		    "48" :  "images/48.png",
 		    "128" : "images/128.png"},
 	"description": "This extension is used by developers to make it easy to fill forms",
-	"browser_action": {
+	"action": {
 		"default_icon": "images/48.png",
 		"default_title": "Web Developer Form Filler",
 		"default_popup": "popup.html"
 	},
 	"background": {
-		"page": "background.html"
+		"service_worker": "javascripts/background.js"
 	},
 	"permissions": [
 		"tabs",
-		"http://*/", "https://*/"
+		"storage"
 	],
-	"manifest_version":2
+	"host_permissions": [
+		"http://*/", 
+		"https://*/"
+	],
+	"manifest_version": 3
 }

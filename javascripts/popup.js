@@ -1,20 +1,21 @@
 var tab_url;
 
-function getAllSets() {
-    var sets = [];
+function getAllSets(callback) {
+    chrome.storage.local.get(null, function(items){
+        var sets = [];
 
-    for (var i = 0; i < localStorage.length; i++) {
-        var key = localStorage.key(i);
-        if (key == 'filter') {
-            continue;
+        for (var key in items) {
+            if (key == 'filter') {
+                continue;
+            }
+            
+            var settings = items[key];
+            settings.key = key;
+            sets.push(settings);
         }
-        
-        var settings = JSON.parse(localStorage.getItem(key));
-        settings.key = key;
-        sets.push(settings);
-    }
 
-    return sets;
+        callback(sets);
+    });
 }
 
 function sortBy(property) {
@@ -31,18 +32,23 @@ function sortBy(property) {
 
 function refreshSetsList(url) {
     var table = $('#sets');
-    var sets;
     
     table.find('tbody tr').remove();
     
     if (table.hasClass('allsets')) {
-        sets = getAllSets();
-        sets.sort(sortBy('url'));
+        getAllSets(function(sets){
+            sets.sort(sortBy('url'));
+            displaySets(sets, table);
+        });
     } else {
-        sets = getSetsForCurrentUrl(url);
-        sets.sort(sortBy('name'));
+        getSetsForCurrentUrl(url, function(sets) {
+            sets.sort(sortBy('name'));
+            displaySets(sets, table);
+        });
     }
+}
 
+function displaySets(sets, table) {
     if (sets.length) {
         $('#sets').show();
         $('#nosets').hide();
@@ -50,7 +56,6 @@ function refreshSetsList(url) {
     } else {
         $('#sets').hide();
         $('#nosets').show();
-        //$('#nosets_url').text(url);
         $('#clearall').addClass('disabled');
         return;
     }
@@ -104,15 +109,19 @@ function renderAdditionalInfo(sets) {
 
 function saveValue(tr, property, value) {
     var key = tr.data('key');
-    var setSettings = JSON.parse(localStorage.getItem(key));
-    setSettings[property] = value;
-    localStorage.setItem(key, JSON.stringify(setSettings));
+    chrome.storage.local.get(key, function(result) {
+        result[property] = value;
+        chrome.storage.local.set({[key]: result});
+    });
 }
 
 function getValue(tr, property) {
     var key = tr.data('key');
-    var setSettings = JSON.parse(localStorage.getItem(key));
-    return setSettings[property];
+    var result;
+    chrome.storage.local.get(key, function(result) {
+        result = result[property];
+    });
+    return result;
 }
 
 function sendMessage(obj, callback) {
@@ -122,22 +131,25 @@ function sendMessage(obj, callback) {
 }
 
 function setCurrentFilter() {
-    var value = localStorage.getItem('filter');
-    
-    if (!value) {
-        localStorage.setItem('filter', FILTER_BY_FULL);
-        value = FILTER_BY_FULL;
-    }
+    chrome.storage.local.get('filter', function(result) {
+        var value = result.filter;
 
-    var link = $('a.filter[id=' + value + ']');
-    link.prepend('<i class="icon-ok"></i> ');
+        if (!value) {
+            value = FILTER_BY_DOMAIN;
+            chrome.storage.local.set({'filter': value });
+        }
+        $('#filter').val(value);
+    });
 }
 
 function getRandomStorageId() {
-    var key = Math.floor((Math.random() * 1000000000) + 1);
-    if (localStorage.getItem(key)) {
-        return Math.floor((Math.random() * 1000000000) + 1);
-    }
+    var key = 'set_' + new Date().getTime();
+    chrome.storage.local.get(key, function(result) {
+        if (result[key]) {
+            return getRandomStorageId();
+        }
+    });
+
     return key;
 }
 
@@ -149,9 +161,9 @@ chrome.tabs.query({ 'active': true, 'currentWindow': true }, function (tab) {
 $(document).ready(function () {
     setCurrentFilter();
     
-	$('.donatelink').click(function () {
-		$('#donate').toggle();
-	});
+	// $('.donatelink').click(function () {
+	// 	$('#donate').toggle();
+	// });
 	
     $("#check").click(function () {
         
@@ -163,55 +175,38 @@ $(document).ready(function () {
     });
 
     $("#import").click(function () {
-		var importBlock = $('#importBlock');
+		$('#txtImportFormJson').val('');
+        $('#importBlock').show();
+    });
 
-        if (importBlock.is(':visible')) {
-            importBlock.hide();
+    $("#btnImportSave").click(function () {
+        var importedForm;
+        try {
+            importedForm = JSON.parse($('#txtImportFormJson').val());
+        } catch (e) {
+            showError('Invalid JSON');
             return;
         }
+        var key = getRandomStorageId();
 
-        importBlock.show();
-		importBlock.find('#txtImportFormJson').focus();
-    });
-	
-    $("#btnImportSave").click(function () {
-		var json = $('#txtImportFormJson').val();
-
-		try {
-			var importedForm = JSON.parse(json);
-
-			if (!importedForm.url || !importedForm.content || !importedForm.name) {
-				throw new Error("Invalid JSON format");
-			}
-			
-			if (importedForm.url === '*'){
-				importedForm.name += '-global';
-			}
-			
-			var key = getRandomStorageId();
-			localStorage.setItem(key, JSON.stringify(importedForm));
-
-		}
-		catch (err) {
-			alert('Got an error: ' + err.message);
-		}
-		
-		refreshSetsList(tab_url);
-		$('#importBlock').hide();
+        chrome.storage.local.set({[key]: importedForm}, function() {
+            $('#importBlock').modal('hide');
+            refreshSetsList(tab_url);
+        });
     });
 
     $("#clearall").click(function () {
-        if ($(this).hasClass("disabled")) {
+        if ($(this).hasClass('disabled')) {
             return;
         }
 
-        var sets = getSetsForCurrentUrl(tab_url);
-        
-        for (var i = 0; i < sets.length; i++) {
-            localStorage.removeItem(sets[i].key);
-        }
+        getSetsForCurrentUrl(tab_url, function(sets) {
+            for (var i = 0; i < sets.length; i++) {
+                chrome.storage.local.remove(sets[i].key);
+            }
 
-        refreshSetsList(tab_url);
+            refreshSetsList(tab_url);
+        });
     });
 
     $("#store").click(function () {
@@ -244,8 +239,9 @@ $(document).ready(function () {
                 hotkey: ''
             };
 
-            localStorage.setItem(key, JSON.stringify(setSettings));
-            refreshSetsList(tab_url);
+            chrome.storage.local.set({[key]: setSettings}, function(){
+                refreshSetsList(tab_url);
+            });
         });
     });
 
@@ -257,10 +253,12 @@ $(document).ready(function () {
 
     sets.on("click", 'td.restore:not(.disabled)', function (event) {
         var key = $(this).parents('tr').data('key');
-        var setSettings = JSON.parse(localStorage.getItem(key));
 
-        sendMessage({ action: 'fill', setSettings: setSettings }, function(response) {
-             window.close();
+        chrome.storage.local.get(key, function(items) {
+            var setSettings = items[key];
+            sendMessage({ action: 'fill', setSettings: setSettings }, function(response) {
+                window.close();
+            });
         });
     });
     
@@ -295,11 +293,12 @@ $(document).ready(function () {
     });
 
     sets.on("click", 'td.remove', function (event) {
-        var tr = $(this).parents('tr');
-        var key = tr.data('key');
+        var key = $(this).parents('tr').data('key');
+        chrome.storage.local.remove(key, function() {
+            refreshSetsList(tab_url);
+        });
         
-        localStorage.removeItem(key);
-		refreshSetsList(tab_url);
+        event.stopPropagation();
     });
 
     sets.on("click", 'td.export', function (event) {
@@ -313,12 +312,15 @@ $(document).ready(function () {
         var td = $(this);
         var tr = td.parents('tr');
         var key = tr.data('key');
-        var formJson = localStorage.getItem(key);
 
-        td.addClass('active');
-        exportBlock.show();
+        chrome.storage.local.get(key, function(items) {
+            var formJson = JSON.stringify(items[key]);
 
-        exportBlock.find('#txtFormJson').val(formJson).focus().select();
+            td.addClass('active');
+            exportBlock.show();
+
+            exportBlock.find('#txtFormJson').val(formJson).focus().select();
+        });
     });
     
     sets.on("click", 'td.hotkey', function (event) {
@@ -398,16 +400,29 @@ $(document).ready(function () {
     $('#btnImportClose').click(function () {
         $('#importBlock').hide();
     });
+
+    sets.on("click", 'td.view', function (event) {
+        var key = $(this).parents('tr').data('key');
+        viewSet(key); 
+        event.stopPropagation();
+    });
     
     $('a.filter').click(function () {
         var link = $(this);
         var value = link.attr('id');
-        $('a.filter').not(link).find('i').remove();
 
-        localStorage.setItem('filter', value);
-        link.prepend('<i class="icon-ok"></i> ');
+        chrome.storage.local.get('filter', function(result) {
+            var currentFilter = result.filter;
+            if (currentFilter !== value) {
+                $('a.filter').not(link).find('i').remove();
 
-        refreshSetsList(tab_url);
+            chrome.storage.local.set({'filter': value }, function(){
+                link.prepend('<i class="icon-ok"></i> ');
+                refreshSetsList(tab_url);
+            });
+            }
+        });
+        event.stopPropagation();
     });
 
     sets
@@ -416,5 +431,82 @@ $(document).ready(function () {
     }).on("mouseup", 'tbody td', function(event) {
         $(this).removeClass('clicked');
     });
-
 });
+
+function saveSet(name, content, url, autoSubmit, submitQuery, hotkey) {
+    var key = 'set_' + new Date().getTime();
+
+    var setSettings = {
+        name: name,
+        content: content,
+        url: url,
+        autoSubmit: autoSubmit,
+        submitQuery: submitQuery,
+        hotkey: hotkey
+    };
+
+    chrome.storage.local.set({[key]: setSettings}, function(){
+        refreshSetsList(tab_url);
+    });
+}
+
+function importSet() {
+    var importedForm;
+    try {
+        importedForm = JSON.parse($('#txtImportFormJson').val());
+    } catch (e) {
+        showError('Invalid JSON');
+        return;
+    }
+    
+    var key = 'set_' + new Date().getTime();
+
+    chrome.storage.local.set({[key]: importedForm}, function() {
+        $('#importBlock').hide();
+        refreshSetsList(tab_url);
+    });
+}
+
+function clearAllSets() {
+    getSetsForCurrentUrl(tab_url, function(sets) {
+        for (var i = 0; i < sets.length; i++) {
+            chrome.storage.local.remove(sets[i].key);
+        }
+
+        refreshSetsList(tab_url);
+    });
+}
+
+function saveSetSettings(tr) {
+    var key = tr.data('key');
+    var name = tr.find('.txtSetName').val();
+    var autoSubmit = tr.find('.chAutoSubmit').is(':checked');
+    var submitQuery = tr.find('.txtSubmitQuery').val();
+    var hotkey = tr.find('.txtHotkey').val();
+
+    chrome.storage.local.get(key, function(items) {
+        var setSettings = items[key];
+        setSettings.name = name;
+        setSettings.autoSubmit = autoSubmit;
+        setSettings.submitQuery = submitQuery;
+        setSettings.hotkey = hotkey;
+
+        chrome.storage.local.set({[key]: setSettings}, function() {
+            refreshSetsList(tab_url);
+        });
+    });
+}
+
+function removeSet(key) {
+    chrome.storage.local.remove(key, function() {
+        refreshSetsList(tab_url);
+    });
+}
+
+function viewSet(key) {
+    chrome.storage.local.get(key, function(items) {
+        var formJson = items[key];
+        $('#txtFormJson').val(JSON.stringify(formJson, null, 4));
+        $('#exportBlock').modal('show');
+    });
+}

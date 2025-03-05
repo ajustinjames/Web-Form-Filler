@@ -1,35 +1,38 @@
-function getHotkeys(url) {
-    var sets = getSetsForCurrentUrl(url);
-    var hotkeys = [];
+importScripts('parseuri.js', 'utils.js');
 
-    for (var i = 0; i < sets.length; i++) {
-        if (!sets[i].hotkey) {
-            continue;
+function getHotkeys(url, callback) {
+    getSetsForCurrentUrl(url, function (sets) {
+        var hotkeys = [];
+
+        for (var i = 0; i < sets.length; i++) {
+            if (!sets[i].hotkey) {
+                continue;
+            }
+
+            hotkeys.push(sets[i].hotkey);
         }
 
-        hotkeys.push(sets[i].hotkey);
-    }
-
-    return hotkeys;
+        callback(hotkeys);
+    });
 }
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-    var hotkeys = getHotkeys(request.url);
-
-    switch (request.action) {
-        case 'gethotkeys':
+    if (request.action === 'gethotkeys') {
+        getHotkeys(request.url, function (hotkeys) {
             sendResponse(hotkeys);
-            break;
-
-        case 'hotkey':
-            var sets = getSetsForCurrentUrl(request.url);
+        });
+        return true;
+    }
+    else if (request.action === 'hotkey') {
+        getSetsForCurrentUrl(request.url, function (sets) {
             for (var i = 0; i < sets.length; i++) {
                 if (sets[i].hotkey == request.code) {
                     sendResponse(sets[i]);
+                    return;
                 }
             }
-            break;
+            sendResponse(null);
+        });
+        return true;
     }
-
-    return true;
 });

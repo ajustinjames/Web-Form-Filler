@@ -51,12 +51,7 @@ $.fn.serializeForm = function() {
     return formparams;
 };
 
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    if (typeof (localStorage) == 'undefined') {
-        alert('WebFormFiller: Your browser does not support HTML5 local storage feature. This extension will not work without this feature.');
-        return;
-    }
-    
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {    
     switch (request.action) {
         case 'store':
             try {
