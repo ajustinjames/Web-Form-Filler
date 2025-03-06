@@ -1,6 +1,6 @@
 # Web Form Filler
 
-A Chrome extension that helps developers quickly fill out web forms. Compatible with Manifest V3.
+A Chrome extension to easily save and fill web forms. Compatible with Manifest V3.
 
 ## Features
 
@@ -47,3 +47,10 @@ Forked from [abzubarev/web-developer-form-filler-ext](https://github.com/abzubar
 ## License
 
 See [LICENSE.md](LICENSE.md) for details.
+
+# Credits
+
+## Font Awesome
+The "pen-to-square" icon is from Font Awesome Free 6.5.1 by @fontawesome
+- License: https://fontawesome.com/license/free (Icons: CC BY 4.0)
+- Copyright: Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com
