@@ -48,8 +48,6 @@ Forked from [abzubarev/web-developer-form-filler-ext](https://github.com/abzubar
 
 See [LICENSE.md](LICENSE.md) for details.
 
-# Credits
-
 ## Font Awesome
 The "pen-to-square" icon is from Font Awesome Free 6.5.1 by @fontawesome
 - License: https://fontawesome.com/license/free (Icons: CC BY 4.0)
