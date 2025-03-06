@@ -8,8 +8,8 @@
 				"matches" : [ "http://*/*", "https://*/*", "file:///*" ],
 				"run_at" : "document_start"
 				} ],
-	"name": "Web Developer Form Filler",
-	"version": "1.0.11",
+	"name": "Web Form Filler",
+	"version": "2.0.0",
 	"icons" : { 
 			"16" :  "images/16.png",
 		    "48" :  "images/48.png",
@@ -17,7 +17,7 @@
 	"description": "This extension is used by developers to make it easy to fill forms",
 	"action": {
 		"default_icon": "images/48.png",
-		"default_title": "Web Developer Form Filler",
+		"default_title": "Web Form Filler",
 		"default_popup": "popup.html"
 	},
 	"background": {
