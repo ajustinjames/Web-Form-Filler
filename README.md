@@ -31,6 +31,15 @@ The extension requires minimal permissions to function:
 - Access to web pages for form filling
 - Local storage for saving settings
 
+## Privacy & Data Collection
+
+This extension:
+- Does not collect any personal data
+- Does not track user behavior
+- Does not send any information to external servers
+- All form data remains locally on your device
+- No analytics or telemetry are implemented
+
 ## Credits
 
 Forked from [abzubarev/web-developer-form-filler-ext](https://github.com/abzubarev/web-developer-form-filler-ext)
