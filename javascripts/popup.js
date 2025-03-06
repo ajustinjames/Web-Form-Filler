@@ -109,9 +109,10 @@ function renderAdditionalInfo(sets) {
 
 function saveValue(tr, property, value) {
     var key = tr.data('key');
-    chrome.storage.local.get(key, function(result) {
-        result[property] = value;
-        chrome.storage.local.set({[key]: result});
+    chrome.storage.local.get(key, function(items) {
+        var setSettings = items[key];
+        setSettings[property] = value;
+        chrome.storage.local.set({[key]: setSettings});
     });
 }
 
