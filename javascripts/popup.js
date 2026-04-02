@@ -1,4 +1,5 @@
 var tab_url;
+var nameEditTimer = null;
 
 function getAllSets(callback) {
     chrome.storage.local.get(null, function(items){
@@ -390,20 +391,24 @@ $(document).ready(function () {
     sets.on("keyup", 'input.txtSetName', function (e) {
         var textbox = $(this);
         var value = textbox.val();
-        
+
         if (!value) {
             return;
         }
 
         var code = e.keyCode || e.which;
         var tr = textbox.parents('tr');
-        
+
         if (code == 13) { //Enter keycode
+            clearTimeout(nameEditTimer);
             var td = textbox.parents('td');
             saveValue(tr, 'name', value);
             td.text(value);
         } else {
-            saveValue(tr, 'name', value);
+            clearTimeout(nameEditTimer);
+            nameEditTimer = setTimeout(function() {
+                saveValue(tr, 'name', value);
+            }, 500);
         }
     });
     
