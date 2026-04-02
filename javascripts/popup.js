@@ -208,7 +208,7 @@ $(document).ready(function () {
         var importedForm;
         try {
             importedForm = JSON.parse($('#txtImportFormJson').val());
-        } catch (e) {
+        } catch (_e) {
             showError('Invalid JSON');
             return;
         }
@@ -242,7 +242,6 @@ $(document).ready(function () {
 
     $("#store").click(function () {
         sendMessage({ "action": 'store' }, function readResponse(obj) {
-            var error = $('#error');
             if (!obj || chrome.runtime.lastError || obj.error) {
 
                 if (chrome.runtime.lastError) {

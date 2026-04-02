@@ -1,0 +1,12 @@
+{
+  "name": "web-form-filler",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint javascripts/ --ignore-pattern '*.min.js' --ignore-pattern 'parseuri.js'"
+  },
+  "devDependencies": {
+    "eslint": "^9",
+    "globals": "^16"
+  }
+}
