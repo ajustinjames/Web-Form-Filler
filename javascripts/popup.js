@@ -193,14 +193,6 @@ chrome.tabs.query({ 'active': true, 'currentWindow': true }, function (tab) {
 $(document).ready(function () {
     setCurrentFilter();
     
-	// $('.donatelink').click(function () {
-	// 	$('#donate').toggle();
-	// });
-	
-    $("#check").click(function () {
-        
-    });
-    
     $("#viewSets").click(function () {
         $('#sets').addClass('allsets');
         refreshSetsList();
@@ -443,12 +435,6 @@ $(document).ready(function () {
         $('#importBlock').hide();
     });
 
-    sets.on("click", 'td.view', function (event) {
-        var key = $(this).parents('tr').data('key');
-        viewSet(key); 
-        event.stopPropagation();
-    });
-    
     $('a.filter').click(function () {
         var link = $(this);
         var value = link.attr('id');
@@ -475,80 +461,3 @@ $(document).ready(function () {
     });
 });
 
-function saveSet(name, content, url, autoSubmit, submitQuery, hotkey) {
-    var key = 'set_' + new Date().getTime();
-
-    var setSettings = {
-        name: name,
-        content: content,
-        url: url,
-        autoSubmit: autoSubmit,
-        submitQuery: submitQuery,
-        hotkey: hotkey
-    };
-
-    chrome.storage.local.set({[key]: setSettings}, function(){
-        refreshSetsList(tab_url);
-    });
-}
-
-function importSet() {
-    var importedForm;
-    try {
-        importedForm = JSON.parse($('#txtImportFormJson').val());
-    } catch (e) {
-        showError('Invalid JSON');
-        return;
-    }
-    
-    var key = 'set_' + new Date().getTime();
-
-    chrome.storage.local.set({[key]: importedForm}, function() {
-        $('#importBlock').hide();
-        refreshSetsList(tab_url);
-    });
-}
-
-function clearAllSets() {
-    getSetsForCurrentUrl(tab_url, function(sets) {
-        for (var i = 0; i < sets.length; i++) {
-            chrome.storage.local.remove(sets[i].key);
-        }
-
-        refreshSetsList(tab_url);
-    });
-}
-
-function saveSetSettings(tr) {
-    var key = tr.data('key');
-    var name = tr.find('.txtSetName').val();
-    var autoSubmit = tr.find('.chAutoSubmit').is(':checked');
-    var submitQuery = tr.find('.txtSubmitQuery').val();
-    var hotkey = tr.find('.txtHotkey').val();
-
-    chrome.storage.local.get(key, function(items) {
-        var setSettings = items[key];
-        setSettings.name = name;
-        setSettings.autoSubmit = autoSubmit;
-        setSettings.submitQuery = submitQuery;
-        setSettings.hotkey = hotkey;
-
-        chrome.storage.local.set({[key]: setSettings}, function() {
-            refreshSetsList(tab_url);
-        });
-    });
-}
-
-function removeSet(key) {
-    chrome.storage.local.remove(key, function() {
-        refreshSetsList(tab_url);
-    });
-}
-
-function viewSet(key) {
-    chrome.storage.local.get(key, function(items) {
-        var formJson = items[key];
-        $('#txtFormJson').val(JSON.stringify(formJson, null, 4));
-        $('#exportBlock').modal('show');
-    });
-}
