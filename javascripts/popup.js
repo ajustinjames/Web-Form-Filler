@@ -168,19 +168,17 @@ function setCurrentFilter() {
             value = FILTER_BY_DOMAIN;
             chrome.storage.local.set({'filter': value });
         }
-        $('#filter').val(value);
+
+        $('a.filter').each(function() {
+            if ($(this).attr('id') === value) {
+                $(this).prepend('<i class="icon-ok"></i> ');
+            }
+        });
     });
 }
 
 function getRandomStorageId() {
-    var key = 'set_' + new Date().getTime();
-    chrome.storage.local.get(key, function(result) {
-        if (result[key]) {
-            return getRandomStorageId();
-        }
-    });
-
-    return key;
+    return 'set_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
 }
 
 chrome.tabs.query({ 'active': true, 'currentWindow': true }, function (tab) {
