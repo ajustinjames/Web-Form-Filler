@@ -116,13 +116,17 @@ function saveValue(tr, property, value) {
     });
 }
 
-function getValue(tr, property) {
+function getValue(tr, property, callback) {
     var key = tr.data('key');
-    var result;
-    chrome.storage.local.get(key, function(result) {
-        result = result[property];
+    chrome.storage.local.get(key, function(items) {
+        callback(items[key] ? items[key][property] : undefined);
     });
-    return result;
+}
+
+function showError(message) {
+    var error = $('#error');
+    error.find('h6').text(message);
+    error.show();
 }
 
 function sendMessage(obj, callback) {
@@ -267,29 +271,27 @@ $(document).ready(function () {
         var td = $(this);
         var tr = td.parents('tr');
 
-        try {
-            
-            if (td.hasClass('active')) {
+        if (td.hasClass('active')) {
                 saveValue(tr, 'autoSubmit', false);
                 td.removeClass('active');
+                refreshSetsList(tab_url);
                 return;
             }
 
-            var oldQuery = getValue(tr, 'submitQuery');
-            oldQuery = oldQuery ? oldQuery : 'input[type=submit]';
+            getValue(tr, 'submitQuery', function(oldQuery) {
+                oldQuery = oldQuery ? oldQuery : 'input[type=submit]';
 
-            var query = prompt('Enter jquery selector for submit button to auto click', oldQuery);
-            if (query) {
-                saveValue(tr, 'submitQuery', query);
-                saveValue(tr, 'autoSubmit', true);
-                td.addClass('active');
-            } else {
-                td.removeClass('active');
-            }
-            
-        } finally {
-            refreshSetsList(tab_url);
-        } 
+                var query = prompt('Enter jquery selector for submit button to auto click', oldQuery);
+                if (query) {
+                    saveValue(tr, 'submitQuery', query);
+                    saveValue(tr, 'autoSubmit', true);
+                    td.addClass('active');
+                } else {
+                    td.removeClass('active');
+                }
+
+                refreshSetsList(tab_url);
+            });
         
     });
 
@@ -334,11 +336,12 @@ $(document).ready(function () {
         
         var td = $(this);
         var tr = td.parents('tr');
-        var value = getValue(tr, 'hotkey');
 
-        td.addClass('active');
-        hotkeyBlock.show();
-        hotkeyBlock.find('#txtHotkey').val(value).focus().select();
+        getValue(tr, 'hotkey', function(value) {
+            td.addClass('active');
+            hotkeyBlock.show();
+            hotkeyBlock.find('#txtHotkey').val(value || '').focus().select();
+        });
     });
     
     sets.on("click", 'td.setName', function (event) {
@@ -349,9 +352,11 @@ $(document).ready(function () {
         
         var tr = td.parents('tr');
         var input = $('<input type="text" class="span1 txtSetName" />');
-        input.val(getValue(tr, 'name'));
 
-        td.empty().append(input).find('input').focus().select();
+        getValue(tr, 'name', function(value) {
+            input.val(value || '');
+            td.empty().append(input).find('input').focus().select();
+        });
     });
     
     sets.on("keyup", 'input.txtSetName', function (e) {

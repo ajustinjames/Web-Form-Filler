@@ -84,8 +84,9 @@ function bindHotkeys ()
             chrome.runtime.sendMessage({ 'action': 'hotkey', code: code, url: location.href }, function(setSettings) {
                 if (!setSettings) {
                     alert('Hotkey not found');
+                    return;
                 }
-                
+
                 fillForm(setSettings);
             });
             
