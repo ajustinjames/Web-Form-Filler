@@ -108,16 +108,20 @@ function fillForm (setSettings)
     
     if (setSettings.autoSubmit) {
         try {
-            var submitButton = $(setSettings.submitQuery);
-            if (submitButton.length) {
-                submitButton.click();
-            }
-            else {
-                alert('Submit button query returned no results');
+            var query = setSettings.submitQuery;
+            if (!query || query.indexOf('<') !== -1) {
+                alert('Invalid submit query selector');
+            } else {
+                var submitButtons = document.querySelectorAll(query);
+                if (submitButtons.length) {
+                    submitButtons[0].click();
+                } else {
+                    alert('Submit button query returned no results');
+                }
             }
         }
         catch (e) {
-            alert('Error in submit query:' + e.message);
+            alert('Error in submit query: ' + e.message);
         }
     }
 }

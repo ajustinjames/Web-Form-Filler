@@ -73,7 +73,7 @@ function renderSets(sets) {
         var set = sets[i];
         var newRow = $('<tr data-key="' + set.key + '"></tr>');
         newRow.append('<td class="restore"><i class="icon-arrow-up"></i> Restore</td>');
-        newRow.append('<td class="setName">' + set.name + '</td>');
+        newRow.append('<td class="setName">' + escapeHtml(set.name) + '</td>');
 
         var isChecked = set.autoSubmit ? "checked" : "";
         var submitHtml = isChecked
@@ -85,7 +85,7 @@ function renderSets(sets) {
         newRow.append('<td class="export"><i class="icon-share-alt"></i></td>');
 
         var hotkey = set.hotkey;
-        newRow.append('<td class="hotkey">' + (hotkey ? hotkey : 'none') + '</a></td>');
+        newRow.append('<td class="hotkey">' + (hotkey ? escapeHtml(hotkey) : 'none') + '</td>');
 
         $('#sets').append(newRow);
     }
@@ -102,7 +102,7 @@ function renderAdditionalInfo(sets) {
         var set = sets[i];
         var row = table.find('tr[data-key=' + set.key + ']');
         var substrHref = set.url.length > 40 ? set.url.substring(0, 40) + '...' : set.url;
-        row.append('<td class="url"><a target="_blank" href="' + set.url + '">' + substrHref + '</a></td>');
+        row.append('<td class="url"><a target="_blank" href="' + escapeHtml(set.url) + '">' + escapeHtml(substrHref) + '</a></td>');
         row.find('td.restore').addClass('disabled').find('i').remove();
     }
 }
@@ -121,6 +121,31 @@ function getValue(tr, property, callback) {
     chrome.storage.local.get(key, function(items) {
         callback(items[key] ? items[key][property] : undefined);
     });
+}
+
+function validateSetSettings(obj) {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
+    if (typeof obj.content !== 'string') return false;
+    if (typeof obj.url !== 'string') return false;
+    if (typeof obj.name !== 'string') return false;
+    if (obj.hotkey !== undefined && typeof obj.hotkey !== 'string') return false;
+    if (obj.submitQuery !== undefined && typeof obj.submitQuery !== 'string') return false;
+    if (obj.autoSubmit !== undefined && typeof obj.autoSubmit !== 'boolean') return false;
+    var allowed = ['content', 'url', 'name', 'hotkey', 'submitQuery', 'autoSubmit'];
+    for (var k in obj) {
+        if (allowed.indexOf(k) === -1) return false;
+    }
+    return true;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 function showError(message) {
@@ -192,10 +217,16 @@ $(document).ready(function () {
             showError('Invalid JSON');
             return;
         }
+
+        if (!validateSetSettings(importedForm)) {
+            showError('Invalid form data structure');
+            return;
+        }
+
         var key = getRandomStorageId();
 
         chrome.storage.local.set({[key]: importedForm}, function() {
-            $('#importBlock').modal('hide');
+            $('#importBlock').hide();
             refreshSetsList(tab_url);
         });
     });
@@ -220,17 +251,16 @@ $(document).ready(function () {
             if (!obj || chrome.runtime.lastError || obj.error) {
 
                 if (chrome.runtime.lastError) {
-                    error.html('<h6>Error :( Something wrong with current tab. Try to reload it.</h6>');
+                    showError('Error :( Something wrong with current tab. Try to reload it.');
                 } else if (!obj) {
-                    error.html('<h6>Error :( Null response from content script</h6>');
+                    showError('Error :( Null response from content script');
                 } else if (obj.error) {
-                    error.html('<h6>Error :\'( ' + obj.message + '</h6>');
+                    showError('Error :\' ( ' + obj.message);
                 }
 
-                error.show();
                 return;
             } else {
-                error.hide();
+                $('#error').hide();
             }
 
             var key = getRandomStorageId();
@@ -373,7 +403,7 @@ $(document).ready(function () {
         if (code == 13) { //Enter keycode
             var td = textbox.parents('td');
             saveValue(tr, 'name', value);
-            td.html(value);
+            td.text(value);
         } else {
             saveValue(tr, 'name', value);
         }
