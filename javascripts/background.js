@@ -1,4 +1,4 @@
-importScripts('parseuri.js', 'utils.js');
+if (typeof importScripts !== 'undefined') importScripts('parseuri.js', 'utils.js');
 
 function getHotkeys(url, callback) {
     getSetsForCurrentUrl(url, function (sets) {
@@ -16,23 +16,27 @@ function getHotkeys(url, callback) {
     });
 }
 
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-    if (request.action === 'gethotkeys') {
-        getHotkeys(request.url, function (hotkeys) {
-            sendResponse(hotkeys);
-        });
-        return true;
-    }
-    else if (request.action === 'hotkey') {
-        getSetsForCurrentUrl(request.url, function (sets) {
-            for (var i = 0; i < sets.length; i++) {
-                if (sets[i].hotkey == request.code) {
-                    sendResponse(sets[i]);
-                    return;
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+    chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+        if (request.action === 'gethotkeys') {
+            getHotkeys(request.url, function (hotkeys) {
+                sendResponse(hotkeys);
+            });
+            return true;
+        }
+        else if (request.action === 'hotkey') {
+            getSetsForCurrentUrl(request.url, function (sets) {
+                for (var i = 0; i < sets.length; i++) {
+                    if (sets[i].hotkey == request.code) {
+                        sendResponse(sets[i]);
+                        return;
+                    }
                 }
-            }
-            sendResponse(null);
-        });
-        return true;
-    }
-});
+                sendResponse(null);
+            });
+            return true;
+        }
+    });
+}
+
+if (typeof module !== 'undefined') module.exports = { getHotkeys };

@@ -186,12 +186,14 @@ function getRandomStorageId() {
     return 'set_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
 }
 
-chrome.tabs.query({ 'active': true, 'currentWindow': true }, function (tab) {
-    tab_url = tab[0].url;
-    refreshSetsList(tab_url);
-});
+if (typeof chrome !== 'undefined' && chrome.tabs) {
+    chrome.tabs.query({ 'active': true, 'currentWindow': true }, function (tab) {
+        tab_url = tab[0].url;
+        refreshSetsList(tab_url);
+    });
+}
 
-$(document).ready(function () {
+if (typeof $ !== 'undefined') $(document).ready(function () {
     setCurrentFilter();
     
     $("#viewSets").click(function () {
@@ -464,4 +466,6 @@ $(document).ready(function () {
         $(this).removeClass('clicked');
     });
 });
+
+if (typeof module !== 'undefined') module.exports = { sortBy, validateSetSettings, escapeHtml, getRandomStorageId, getAllSets };
 

@@ -3,10 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "eslint javascripts/ --ignore-pattern '*.min.js' --ignore-pattern 'parseuri.js'"
+    "lint": "eslint javascripts/ --ignore-pattern '*.min.js' --ignore-pattern 'parseuri.js'",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "eslint": "^9",
-    "globals": "^16"
+    "globals": "^16",
+    "happy-dom": "^20.8.9",
+    "vitest": "^4.1.2"
   }
 }

@@ -16,7 +16,7 @@ No build process — source files load directly as an unpacked Chrome extension.
 3. Load unpacked → select this directory
 4. Click the refresh icon after any JS/HTML changes
 
-No test suite, no linter, no package manager.
+Uses npm for dev tooling (ESLint, Vitest). No build process.
 
 ## Architecture
 
@@ -41,6 +41,14 @@ No test suite, no linter, no package manager.
 **Parameter substitution:** Field values support tokens like `{randomNumber:8:12}` and `{randomAlpha:5:10}` expanded at fill time in `content_script.js`.
 
 **URL matching:** `utils.js` compares stored set URLs against the active tab URL. Default is domain-level (all pages on a domain share sets).
+
+## Testing
+
+- **Framework:** Vitest with happy-dom
+- **Run:** `npm test` (single run) or `npm run test:watch` (watch mode)
+- **Test files:** `tests/` directory (5 test files, ~59 tests)
+- **Chrome API mocking:** `tests/helpers/chrome-mock.js` — use `createChromeMock(storageData)` to pre-populate storage
+- **How exports work:** Each source file appends `if (typeof module !== 'undefined') module.exports = {...}` — this is inert in the browser (no `module` global) but allows Vitest to import functions via `createRequire`. `javascripts/package.json` declares `"type": "commonjs"` so Node treats those files as CJS.
 
 ## Permissions
 

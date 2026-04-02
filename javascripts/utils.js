@@ -31,7 +31,7 @@ function getSetsForCurrentUrl(url, callback) {
     chrome.storage.local.get(null, function(items){
         var sets = [];
         var filterValue = items.filter || FILTER_BY_DOMAIN;
-        
+
         for (var key in items) {
             if (key === 'filter') continue;
 
@@ -50,3 +50,5 @@ function getSetsForCurrentUrl(url, callback) {
         callback(sets);
     });
 }
+
+if (typeof module !== 'undefined') module.exports = { fits, getSetsForCurrentUrl, FILTER_BY_DOMAIN, FILTER_BY_PATH, FILTER_BY_FULL };

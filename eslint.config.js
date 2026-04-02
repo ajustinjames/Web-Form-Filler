@@ -1,6 +1,25 @@
 import globals from 'globals';
 
 export default [
+    // Test files: Node + Vitest globals
+    {
+        files: ['tests/**/*.js'],
+        languageOptions: {
+            ecmaVersion: 2020,
+            sourceType: 'module',
+            globals: {
+                ...globals.node,
+                describe: 'readonly',
+                it: 'readonly',
+                expect: 'readonly',
+                vi: 'readonly',
+                beforeEach: 'readonly',
+                afterEach: 'readonly',
+                beforeAll: 'readonly',
+                afterAll: 'readonly',
+            },
+        },
+    },
     // Content scripts and popup: browser + chrome extension globals
     {
         files: ['javascripts/popup.js', 'javascripts/content_script.js', 'javascripts/deserialize.js'],
@@ -14,6 +33,7 @@ export default [
                 jQuery: 'readonly',
                 FILTER_BY_DOMAIN: 'readonly',
                 getSetsForCurrentUrl: 'readonly',
+                module: 'writable',
             },
         },
         rules: {
@@ -34,6 +54,7 @@ export default [
                 parseUri: 'readonly',
                 getSetsForCurrentUrl: 'readonly',
                 FILTER_BY_DOMAIN: 'readonly',
+                module: 'writable',
             },
         },
         rules: {
@@ -51,6 +72,7 @@ export default [
                 parseUri: 'readonly',
                 FILTER_BY_DOMAIN: 'writable',
                 getSetsForCurrentUrl: 'writable',
+                module: 'writable',
             },
         },
         rules: {

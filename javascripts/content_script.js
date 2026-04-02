@@ -1,4 +1,4 @@
-$.fn.serializeForm = function() {
+if (typeof $ !== 'undefined') $.fn.serializeForm = function() {
     //Create an object to hold the data, this is the same type of object that is expected by $.post
     var formparams = {};
     this.each(function() {
@@ -51,30 +51,32 @@ $.fn.serializeForm = function() {
     return formparams;
 };
 
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {    
-    switch (request.action) {
-        case 'store':
-            try {
-                var inputs = $('body').serializeForm();
-                sendResponse({ content: JSON.stringify(inputs) });
-            }
-            catch (e) {
-                sendResponse({ error: true, message: e.message });
-            }
-            break;
-        
-        case 'fill':
-            fillForm(request.setSettings);
-            sendResponse({});
-            break;
-        
-        case 'rebind':
-            bindHotkeys();
-            break;
-    }
-});
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+    chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+        switch (request.action) {
+            case 'store':
+                try {
+                    var inputs = $('body').serializeForm();
+                    sendResponse({ content: JSON.stringify(inputs) });
+                }
+                catch (e) {
+                    sendResponse({ error: true, message: e.message });
+                }
+                break;
 
-bindHotkeys();
+            case 'fill':
+                fillForm(request.setSettings);
+                sendResponse({});
+                break;
+
+            case 'rebind':
+                bindHotkeys();
+                break;
+        }
+    });
+
+    bindHotkeys();
+}
 
 function bindHotkeys ()
 {
@@ -143,6 +145,8 @@ function replaceParameters (value)
 }
 
 function randomStringGenerator (pool, minLength, maxLength) {
+    minLength = Number(minLength);
+    maxLength = maxLength ? Number(maxLength) : undefined;
     var length = maxLength
         ? minLength + Math.round(Math.random() * (maxLength - minLength))
         : minLength;
@@ -153,3 +157,5 @@ function randomStringGenerator (pool, minLength, maxLength) {
     }
     return result;
 }
+
+if (typeof module !== 'undefined') module.exports = { replaceParameters, randomStringGenerator };
