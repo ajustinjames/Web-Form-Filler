@@ -112,7 +112,11 @@ function saveValue(tr, property, value) {
     chrome.storage.local.get(key, function(items) {
         var setSettings = items[key];
         setSettings[property] = value;
-        chrome.storage.local.set({[key]: setSettings});
+        chrome.storage.local.set({[key]: setSettings}, function() {
+            if (chrome.runtime.lastError) {
+                showError('Storage error: ' + chrome.runtime.lastError.message);
+            }
+        });
     });
 }
 
@@ -273,6 +277,10 @@ $(document).ready(function () {
             };
 
             chrome.storage.local.set({[key]: setSettings}, function(){
+                if (chrome.runtime.lastError) {
+                    showError('Storage full. Delete some sets and try again.');
+                    return;
+                }
                 refreshSetsList(tab_url);
             });
         });
