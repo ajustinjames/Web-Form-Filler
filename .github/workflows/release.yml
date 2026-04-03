@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  pull_request:
+    branches: [master]
+    types: [closed]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine version bump
+        id: bump-type
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const validLabels = ['major', 'minor', 'patch'];
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const bump = validLabels.find(b => labels.includes(b));
+            if (!bump) {
+              core.setFailed('No semver label found on merged PR — release skipped.');
+              return '';
+            }
+            core.info(`Bump type: ${bump}`);
+            return bump;
+
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump version in manifest.json
+        id: version
+        env:
+          BUMP: ${{ steps.bump-type.outputs.result }}
+        run: |
+          CURRENT=$(node -p "JSON.parse(require('fs').readFileSync('manifest.json','utf8')).version")
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+
+          node -e "
+            const fs = require('fs');
+            const content = fs.readFileSync('manifest.json', 'utf8');
+            const updated = content.replace(
+              /\"version\":\s*\"[^\"]+\"/,
+              '\"version\": \"' + process.env.NEW_VERSION + '\"'
+            );
+            fs.writeFileSync('manifest.json', updated);
+          " NEW_VERSION="$NEW_VERSION"
+
+          echo "Bumped: $CURRENT -> $NEW_VERSION"
+
+      - name: Commit version bump
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "chore: bump version to ${NEW_VERSION}"
+          git push origin master
+
+      - name: Create and push tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Build extension zip
+        id: zip
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ZIP_NAME="web-form-filler-${NEW_VERSION}.zip"
+          zip -r "$ZIP_NAME" \
+            manifest.json \
+            popup.html \
+            javascripts/*.js \
+            images/*.png \
+            bootstrap/css/ \
+            bootstrap/js/ \
+            bootstrap/img/
+          echo "zip_name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          body: |
+            **Version bump:** `${{ steps.bump-type.outputs.result }}`
+            **PR:** #${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}
+          files: ${{ steps.zip.outputs.zip_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
