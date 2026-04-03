@@ -69,16 +69,6 @@ jobs:
 
           echo "Bumped: $CURRENT -> $NEW_VERSION"
 
-      - name: Commit version bump
-        env:
-          NEW_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add manifest.json
-          git commit -m "chore: bump version to ${NEW_VERSION}"
-          git push origin master
-
       - name: Create and push tag
         env:
           TAG: ${{ steps.version.outputs.tag }}
