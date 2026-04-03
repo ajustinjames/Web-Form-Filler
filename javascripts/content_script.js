@@ -1,4 +1,4 @@
-$.fn.serializeForm = function() {
+if (typeof $ !== 'undefined') $.fn.serializeForm = function() {
     //Create an object to hold the data, this is the same type of object that is expected by $.post
     var formparams = {};
     this.each(function() {
@@ -51,30 +51,32 @@ $.fn.serializeForm = function() {
     return formparams;
 };
 
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {    
-    switch (request.action) {
-        case 'store':
-            try {
-                var inputs = $('body').serializeForm();
-                sendResponse({ content: JSON.stringify(inputs) });
-            }
-            catch (e) {
-                sendResponse({ error: true, message: e.message });
-            }
-            break;
-        
-        case 'fill':
-            fillForm(request.setSettings);
-            sendResponse({});
-            break;
-        
-        case 'rebind':
-            bindHotkeys();
-            break;
-    }
-});
+if (typeof chrome !== 'undefined' && chrome.runtime) {
+    chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+        switch (request.action) {
+            case 'store':
+                try {
+                    var inputs = $('body').serializeForm();
+                    sendResponse({ content: JSON.stringify(inputs) });
+                }
+                catch (e) {
+                    sendResponse({ error: true, message: e.message });
+                }
+                break;
 
-bindHotkeys();
+            case 'fill':
+                fillForm(request.setSettings);
+                sendResponse({});
+                break;
+
+            case 'rebind':
+                bindHotkeys();
+                break;
+        }
+    });
+
+    bindHotkeys();
+}
 
 function bindHotkeys ()
 {
@@ -84,8 +86,9 @@ function bindHotkeys ()
             chrome.runtime.sendMessage({ 'action': 'hotkey', code: code, url: location.href }, function(setSettings) {
                 if (!setSettings) {
                     alert('Hotkey not found');
+                    return;
                 }
-                
+
                 fillForm(setSettings);
             });
             
@@ -107,16 +110,20 @@ function fillForm (setSettings)
     
     if (setSettings.autoSubmit) {
         try {
-            var submitButton = $(setSettings.submitQuery);
-            if (submitButton.length) {
-                submitButton.click();
-            }
-            else {
-                alert('Submit button query returned no results');
+            var query = setSettings.submitQuery;
+            if (!query || query.indexOf('<') !== -1) {
+                alert('Invalid submit query selector');
+            } else {
+                var submitButtons = document.querySelectorAll(query);
+                if (submitButtons.length) {
+                    submitButtons[0].click();
+                } else {
+                    alert('Submit button query returned no results');
+                }
             }
         }
         catch (e) {
-            alert('Error in submit query:' + e.message);
+            alert('Error in submit query: ' + e.message);
         }
     }
 }
@@ -138,6 +145,8 @@ function replaceParameters (value)
 }
 
 function randomStringGenerator (pool, minLength, maxLength) {
+    minLength = Number(minLength);
+    maxLength = maxLength ? Number(maxLength) : undefined;
     var length = maxLength
         ? minLength + Math.round(Math.random() * (maxLength - minLength))
         : minLength;
@@ -148,3 +157,5 @@ function randomStringGenerator (pool, minLength, maxLength) {
     }
     return result;
 }
+
+if (typeof module !== 'undefined') module.exports = { replaceParameters, randomStringGenerator };

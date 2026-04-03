@@ -1,0 +1,26 @@
+name: Enforce semver label
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, labeled, unlabeled, synchronize]
+
+jobs:
+  check-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for semver label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const validLabels = ['patch', 'minor', 'major'];
+            const prLabels = context.payload.pull_request.labels.map(l => l.name);
+            const semverLabels = prLabels.filter(l => validLabels.includes(l));
+
+            if (semverLabels.length === 0) {
+              core.setFailed('PR must have one semver label: patch, minor, or major');
+            } else if (semverLabels.length > 1) {
+              core.setFailed(`PR must have exactly one semver label, found: ${semverLabels.join(', ')}`);
+            } else {
+              core.info(`Semver label: ${semverLabels[0]}`);
+            }

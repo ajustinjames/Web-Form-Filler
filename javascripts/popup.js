@@ -1,4 +1,5 @@
 var tab_url;
+var nameEditTimer = null;
 
 function getAllSets(callback) {
     chrome.storage.local.get(null, function(items){
@@ -73,7 +74,7 @@ function renderSets(sets) {
         var set = sets[i];
         var newRow = $('<tr data-key="' + set.key + '"></tr>');
         newRow.append('<td class="restore"><i class="icon-arrow-up"></i> Restore</td>');
-        newRow.append('<td class="setName">' + set.name + '</td>');
+        newRow.append('<td class="setName">' + escapeHtml(set.name) + '</td>');
 
         var isChecked = set.autoSubmit ? "checked" : "";
         var submitHtml = isChecked
@@ -85,7 +86,7 @@ function renderSets(sets) {
         newRow.append('<td class="export"><i class="icon-share-alt"></i></td>');
 
         var hotkey = set.hotkey;
-        newRow.append('<td class="hotkey">' + (hotkey ? hotkey : 'none') + '</a></td>');
+        newRow.append('<td class="hotkey">' + (hotkey ? escapeHtml(hotkey) : 'none') + '</td>');
 
         $('#sets').append(newRow);
     }
@@ -102,7 +103,7 @@ function renderAdditionalInfo(sets) {
         var set = sets[i];
         var row = table.find('tr[data-key=' + set.key + ']');
         var substrHref = set.url.length > 40 ? set.url.substring(0, 40) + '...' : set.url;
-        row.append('<td class="url"><a target="_blank" href="' + set.url + '">' + substrHref + '</a></td>');
+        row.append('<td class="url"><a target="_blank" href="' + escapeHtml(set.url) + '">' + escapeHtml(substrHref) + '</a></td>');
         row.find('td.restore').addClass('disabled').find('i').remove();
     }
 }
@@ -112,17 +113,50 @@ function saveValue(tr, property, value) {
     chrome.storage.local.get(key, function(items) {
         var setSettings = items[key];
         setSettings[property] = value;
-        chrome.storage.local.set({[key]: setSettings});
+        chrome.storage.local.set({[key]: setSettings}, function() {
+            if (chrome.runtime.lastError) {
+                showError('Storage error: ' + chrome.runtime.lastError.message);
+            }
+        });
     });
 }
 
-function getValue(tr, property) {
+function getValue(tr, property, callback) {
     var key = tr.data('key');
-    var result;
-    chrome.storage.local.get(key, function(result) {
-        result = result[property];
+    chrome.storage.local.get(key, function(items) {
+        callback(items[key] ? items[key][property] : undefined);
     });
-    return result;
+}
+
+function validateSetSettings(obj) {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
+    if (typeof obj.content !== 'string') return false;
+    if (typeof obj.url !== 'string') return false;
+    if (typeof obj.name !== 'string') return false;
+    if (obj.hotkey !== undefined && typeof obj.hotkey !== 'string') return false;
+    if (obj.submitQuery !== undefined && typeof obj.submitQuery !== 'string') return false;
+    if (obj.autoSubmit !== undefined && typeof obj.autoSubmit !== 'boolean') return false;
+    var allowed = ['content', 'url', 'name', 'hotkey', 'submitQuery', 'autoSubmit'];
+    for (var k in obj) {
+        if (allowed.indexOf(k) === -1) return false;
+    }
+    return true;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function showError(message) {
+    var error = $('#error');
+    error.find('h6').text(message);
+    error.show();
 }
 
 function sendMessage(obj, callback) {
@@ -139,36 +173,28 @@ function setCurrentFilter() {
             value = FILTER_BY_DOMAIN;
             chrome.storage.local.set({'filter': value });
         }
-        $('#filter').val(value);
+
+        $('a.filter').each(function() {
+            if ($(this).attr('id') === value) {
+                $(this).prepend('<i class="icon-ok"></i> ');
+            }
+        });
     });
 }
 
 function getRandomStorageId() {
-    var key = 'set_' + new Date().getTime();
-    chrome.storage.local.get(key, function(result) {
-        if (result[key]) {
-            return getRandomStorageId();
-        }
-    });
-
-    return key;
+    return 'set_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
 }
 
-chrome.tabs.query({ 'active': true, 'currentWindow': true }, function (tab) {
-    tab_url = tab[0].url;
-    refreshSetsList(tab_url);
-});
-
-$(document).ready(function () {
-    setCurrentFilter();
-    
-	// $('.donatelink').click(function () {
-	// 	$('#donate').toggle();
-	// });
-	
-    $("#check").click(function () {
-        
+if (typeof chrome !== 'undefined' && chrome.tabs) {
+    chrome.tabs.query({ 'active': true, 'currentWindow': true }, function (tab) {
+        tab_url = tab[0].url;
+        refreshSetsList(tab_url);
     });
+}
+
+if (typeof $ !== 'undefined') $(document).ready(function () {
+    setCurrentFilter();
     
     $("#viewSets").click(function () {
         $('#sets').addClass('allsets');
@@ -184,14 +210,20 @@ $(document).ready(function () {
         var importedForm;
         try {
             importedForm = JSON.parse($('#txtImportFormJson').val());
-        } catch (e) {
+        } catch (_e) {
             showError('Invalid JSON');
             return;
         }
+
+        if (!validateSetSettings(importedForm)) {
+            showError('Invalid form data structure');
+            return;
+        }
+
         var key = getRandomStorageId();
 
         chrome.storage.local.set({[key]: importedForm}, function() {
-            $('#importBlock').modal('hide');
+            $('#importBlock').hide();
             refreshSetsList(tab_url);
         });
     });
@@ -212,21 +244,19 @@ $(document).ready(function () {
 
     $("#store").click(function () {
         sendMessage({ "action": 'store' }, function readResponse(obj) {
-            var error = $('#error');
             if (!obj || chrome.runtime.lastError || obj.error) {
 
                 if (chrome.runtime.lastError) {
-                    error.html('<h6>Error :( Something wrong with current tab. Try to reload it.</h6>');
+                    showError('Error :( Something wrong with current tab. Try to reload it.');
                 } else if (!obj) {
-                    error.html('<h6>Error :( Null response from content script</h6>');
+                    showError('Error :( Null response from content script');
                 } else if (obj.error) {
-                    error.html('<h6>Error :\'( ' + obj.message + '</h6>');
+                    showError('Error :\' ( ' + obj.message);
                 }
 
-                error.show();
                 return;
             } else {
-                error.hide();
+                $('#error').hide();
             }
 
             var key = getRandomStorageId();
@@ -241,6 +271,10 @@ $(document).ready(function () {
             };
 
             chrome.storage.local.set({[key]: setSettings}, function(){
+                if (chrome.runtime.lastError) {
+                    showError('Storage full. Delete some sets and try again.');
+                    return;
+                }
                 refreshSetsList(tab_url);
             });
         });
@@ -267,29 +301,27 @@ $(document).ready(function () {
         var td = $(this);
         var tr = td.parents('tr');
 
-        try {
-            
-            if (td.hasClass('active')) {
+        if (td.hasClass('active')) {
                 saveValue(tr, 'autoSubmit', false);
                 td.removeClass('active');
+                refreshSetsList(tab_url);
                 return;
             }
 
-            var oldQuery = getValue(tr, 'submitQuery');
-            oldQuery = oldQuery ? oldQuery : 'input[type=submit]';
+            getValue(tr, 'submitQuery', function(oldQuery) {
+                oldQuery = oldQuery ? oldQuery : 'input[type=submit]';
 
-            var query = prompt('Enter jquery selector for submit button to auto click', oldQuery);
-            if (query) {
-                saveValue(tr, 'submitQuery', query);
-                saveValue(tr, 'autoSubmit', true);
-                td.addClass('active');
-            } else {
-                td.removeClass('active');
-            }
-            
-        } finally {
-            refreshSetsList(tab_url);
-        } 
+                var query = prompt('Enter jquery selector for submit button to auto click', oldQuery);
+                if (query) {
+                    saveValue(tr, 'submitQuery', query);
+                    saveValue(tr, 'autoSubmit', true);
+                    td.addClass('active');
+                } else {
+                    td.removeClass('active');
+                }
+
+                refreshSetsList(tab_url);
+            });
         
     });
 
@@ -334,11 +366,12 @@ $(document).ready(function () {
         
         var td = $(this);
         var tr = td.parents('tr');
-        var value = getValue(tr, 'hotkey');
 
-        td.addClass('active');
-        hotkeyBlock.show();
-        hotkeyBlock.find('#txtHotkey').val(value).focus().select();
+        getValue(tr, 'hotkey', function(value) {
+            td.addClass('active');
+            hotkeyBlock.show();
+            hotkeyBlock.find('#txtHotkey').val(value || '').focus().select();
+        });
     });
     
     sets.on("click", 'td.setName', function (event) {
@@ -349,28 +382,34 @@ $(document).ready(function () {
         
         var tr = td.parents('tr');
         var input = $('<input type="text" class="span1 txtSetName" />');
-        input.val(getValue(tr, 'name'));
 
-        td.empty().append(input).find('input').focus().select();
+        getValue(tr, 'name', function(value) {
+            input.val(value || '');
+            td.empty().append(input).find('input').focus().select();
+        });
     });
     
     sets.on("keyup", 'input.txtSetName', function (e) {
         var textbox = $(this);
         var value = textbox.val();
-        
+
         if (!value) {
             return;
         }
 
         var code = e.keyCode || e.which;
         var tr = textbox.parents('tr');
-        
+
         if (code == 13) { //Enter keycode
+            clearTimeout(nameEditTimer);
             var td = textbox.parents('td');
             saveValue(tr, 'name', value);
-            td.html(value);
+            td.text(value);
         } else {
-            saveValue(tr, 'name', value);
+            clearTimeout(nameEditTimer);
+            nameEditTimer = setTimeout(function() {
+                saveValue(tr, 'name', value);
+            }, 500);
         }
     });
     
@@ -402,12 +441,6 @@ $(document).ready(function () {
         $('#importBlock').hide();
     });
 
-    sets.on("click", 'td.view', function (event) {
-        var key = $(this).parents('tr').data('key');
-        viewSet(key); 
-        event.stopPropagation();
-    });
-    
     $('a.filter').click(function () {
         var link = $(this);
         var value = link.attr('id');
@@ -434,80 +467,5 @@ $(document).ready(function () {
     });
 });
 
-function saveSet(name, content, url, autoSubmit, submitQuery, hotkey) {
-    var key = 'set_' + new Date().getTime();
+if (typeof module !== 'undefined') module.exports = { sortBy, validateSetSettings, escapeHtml, getRandomStorageId, getAllSets };
 
-    var setSettings = {
-        name: name,
-        content: content,
-        url: url,
-        autoSubmit: autoSubmit,
-        submitQuery: submitQuery,
-        hotkey: hotkey
-    };
-
-    chrome.storage.local.set({[key]: setSettings}, function(){
-        refreshSetsList(tab_url);
-    });
-}
-
-function importSet() {
-    var importedForm;
-    try {
-        importedForm = JSON.parse($('#txtImportFormJson').val());
-    } catch (e) {
-        showError('Invalid JSON');
-        return;
-    }
-    
-    var key = 'set_' + new Date().getTime();
-
-    chrome.storage.local.set({[key]: importedForm}, function() {
-        $('#importBlock').hide();
-        refreshSetsList(tab_url);
-    });
-}
-
-function clearAllSets() {
-    getSetsForCurrentUrl(tab_url, function(sets) {
-        for (var i = 0; i < sets.length; i++) {
-            chrome.storage.local.remove(sets[i].key);
-        }
-
-        refreshSetsList(tab_url);
-    });
-}
-
-function saveSetSettings(tr) {
-    var key = tr.data('key');
-    var name = tr.find('.txtSetName').val();
-    var autoSubmit = tr.find('.chAutoSubmit').is(':checked');
-    var submitQuery = tr.find('.txtSubmitQuery').val();
-    var hotkey = tr.find('.txtHotkey').val();
-
-    chrome.storage.local.get(key, function(items) {
-        var setSettings = items[key];
-        setSettings.name = name;
-        setSettings.autoSubmit = autoSubmit;
-        setSettings.submitQuery = submitQuery;
-        setSettings.hotkey = hotkey;
-
-        chrome.storage.local.set({[key]: setSettings}, function() {
-            refreshSetsList(tab_url);
-        });
-    });
-}
-
-function removeSet(key) {
-    chrome.storage.local.remove(key, function() {
-        refreshSetsList(tab_url);
-    });
-}
-
-function viewSet(key) {
-    chrome.storage.local.get(key, function(items) {
-        var formJson = items[key];
-        $('#txtFormJson').val(JSON.stringify(formJson, null, 4));
-        $('#exportBlock').modal('show');
-    });
-}
